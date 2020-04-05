@@ -18,11 +18,15 @@ from linkedin.linkedin import LinkedInAuthentication, LinkedInApplication, PERMI
 
 PORT = 8080
 
+def get_environ(name):
+    if name not in environ:
+        raise KeyError(f"Environment variable {name} is not set")
+    return environ.get(name)
 
 class LinkedInWrapper(object):
     """ Simple namespacing """
-    API_KEY = environ.get('LINKEDIN_API_KEY')
-    API_SECRET = environ.get('LINKEDIN_API_SECRET')
+    API_KEY = get_environ('LINKEDIN_API_KEY')
+    API_SECRET = get_environ('LINKEDIN_API_SECRET')
     RETURN_URL = f'http://localhost:{PORT}/code'
     authentication = LinkedInAuthentication(API_KEY, API_SECRET, RETURN_URL, list(PERMISSIONS.enums.values()))
     application = LinkedInApplication(authentication)
@@ -75,4 +79,7 @@ if __name__ == '__main__':
     httpd = ThreadingTCPServer(('localhost', PORT), CustomHandler)
 
     print(f'Server started on port:{PORT}')
-    httpd.serve_forever()
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("Exiting")
