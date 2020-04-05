@@ -28,12 +28,11 @@ class LinkedInWrapper(object):
     API_KEY = get_environ('LINKEDIN_API_KEY')
     API_SECRET = get_environ('LINKEDIN_API_SECRET')
     RETURN_URL = f'http://localhost:{PORT}/code'
-    authentication = LinkedInAuthentication(API_KEY, API_SECRET, RETURN_URL, list(PERMISSIONS.enums.values()))
+    authentication = LinkedInAuthentication(API_KEY, API_SECRET, RETURN_URL, ["r_liteprofile"])
     application = LinkedInApplication(authentication)
 
 
 liw = LinkedInWrapper()
-run_already = False
 params_to_d = lambda params: {
     l[0]: l[1] for l in [j.split('=') for j in urlparse(params).query.split('&')]
 }
@@ -46,7 +45,6 @@ class CustomHandler(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        global run_already
         parsedurl = urlparse(self.path)
         authed = liw.authentication.token is not None
 
@@ -62,10 +60,7 @@ class CustomHandler(SimpleHTTPRequestHandler):
             self.wfile.write(dumps({'routes': list([d for d in dir(liw.application) if not d.startswith('_')])}).encode('utf8'))
         elif not authed:
             self.json_headers()
-
-            if not run_already:
-                open_new_tab(liw.authentication.authorization_url)
-            run_already = True
+            open_new_tab(liw.authentication.authorization_url)
             self.wfile.write(dumps({'path': self.path, 'authed': type(liw.authentication.token) is None}).encode('utf8'))
         elif authed and len(parsedurl.path) and parsedurl.path[1:] in dir(liw.application):
             self.json_headers()
