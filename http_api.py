@@ -1,80 +1,37 @@
-__author__ = 'Samuel Marks <samuelmarks@gmail.com>'
-__version__ = '0.1.0'
-
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urllib.parse import urlparse
-
-from socketserver import ThreadingTCPServer
-from http.server import SimpleHTTPRequestHandler
-
-from webbrowser import open_new_tab
-from json import dumps
 from os import environ
-
+import requests
+from flask import Flask, request
 
 from linkedin.linkedin import LinkedInAuthentication, LinkedInApplication, PERMISSIONS
-
-PORT = 8080
 
 def get_environ(name):
     if name not in environ:
         raise KeyError(f"Environment variable {name} is not set")
     return environ.get(name)
 
+PORT = get_environ("PORT")
+
 class LinkedInWrapper(object):
     """ Simple namespacing """
     API_KEY = get_environ('LINKEDIN_API_KEY')
     API_SECRET = get_environ('LINKEDIN_API_SECRET')
     RETURN_URL = f'http://localhost:{PORT}/code'
-    authentication = LinkedInAuthentication(API_KEY, API_SECRET, RETURN_URL, ["r_liteprofile"])
+    authentication = LinkedInAuthentication(API_KEY, API_SECRET, RETURN_URL, ["r_liteprofile", "r_emailaddress"])
     application = LinkedInApplication(authentication)
 
-
 liw = LinkedInWrapper()
-params_to_d = lambda params: {
-    l[0]: l[1] for l in [j.split('=') for j in urlparse(params).query.split('&')]
-}
 
+app = Flask(__name__)
+@app.route('/')
+def root():
+    authed = liw.authentication.token is not None
+    return {'authed': type(liw.authentication.token) is None, 'auth_url': liw.authentication.authorization_url}
 
-class CustomHandler(SimpleHTTPRequestHandler):
-    def json_headers(self, status_code=200):
-        self.send_response(status_code)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()
-
-    def do_GET(self):
-        parsedurl = urlparse(self.path)
-        authed = liw.authentication.token is not None
-
-        if parsedurl.path == '/code':
-            self.json_headers()
-
-            liw.authentication.authorization_code = params_to_d(self.path).get('code')
-            self.wfile.write(dumps({'access_token': liw.authentication.get_access_token(),
-                                    'routes': list([d for d in dir(liw.application) if not d.startswith('_')])}).encode('utf8'))
-        elif parsedurl.path == '/routes':
-            self.json_headers()
-
-            self.wfile.write(dumps({'routes': list([d for d in dir(liw.application) if not d.startswith('_')])}).encode('utf8'))
-        elif not authed:
-            self.json_headers()
-            open_new_tab(liw.authentication.authorization_url)
-            self.wfile.write(dumps({'path': self.path, 'authed': type(liw.authentication.token) is None}).encode('utf8'))
-        elif authed and len(parsedurl.path) and parsedurl.path[1:] in dir(liw.application):
-            self.json_headers()
-            self.wfile.write(dumps(getattr(liw.application, parsedurl.path[1:])()).encode('utf8'))
-        else:
-            self.json_headers(501)
-            self.wfile.write(dumps({'error': 'NotImplemented'}).encode('utf8'))
-
-
-if __name__ == '__main__':
-    httpd = ThreadingTCPServer(('localhost', PORT), CustomHandler)
-
-    print(f'Server started on port:{PORT}')
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        print("Exiting")
+@app.route("/code")
+@app.route("/auth")
+def auth():
+    liw.authentication.authorization_code = code = request.args.get('code')
+    access_token = liw.authentication.get_access_token()
+    routes = [d for d in dir(liw.application) if not d.startswith('_')]
+    print(f"code {code}, access token: {access_token}")
+    return {'access_token': access_token, 'routes': routes, 'profile': liw.application.get_profile()}

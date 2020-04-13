@@ -1,1 +1,1 @@
-python-linkedin
+git+https://github.com/Hackers-Hub/python-linkedin.git
