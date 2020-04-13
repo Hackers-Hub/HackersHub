@@ -7,6 +7,6 @@ init: requirements.txt
 	pip install -r $<
 
 dev:
-	FLASK_APP=${FLASK_APP} FLASK_ENV=${FLASK_ENV} python -m flask run --host ${HOST} --port ${PORT}
+	FLASK_APP=${FLASK_APP} FLASK_ENV=${FLASK_ENV} PORT=${PORT} python -m flask run --host ${HOST} --port ${PORT}
 
 .PHONY = init dev

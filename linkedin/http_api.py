@@ -13,10 +13,10 @@ PORT = get_environ("PORT")
 
 class LinkedInWrapper(object):
     """ Simple namespacing """
-    API_KEY = get_environ('LINKEDIN_API_KEY')
-    API_SECRET = get_environ('LINKEDIN_API_SECRET')
+    CLIENT_ID = get_environ('LINKEDIN_CLIENT_ID')
+    CLIENT_SECRET = get_environ('LINKEDIN_CLIENT_SECRET')
     RETURN_URL = f'http://localhost:{PORT}/code'
-    authentication = LinkedInAuthentication(API_KEY, API_SECRET, RETURN_URL, ["r_liteprofile", "r_emailaddress"])
+    authentication = LinkedInAuthentication(CLIENT_ID, CLIENT_SECRET, RETURN_URL, ["r_liteprofile", "r_emailaddress"])
     application = LinkedInApplication(authentication)
 
 liw = LinkedInWrapper()
